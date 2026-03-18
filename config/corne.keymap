@@ -1,56 +1,178 @@
 /*
- * Copyright (c) 2020 The ZMK Contributors
+ * Converted from QMK to ZMK
  *
- * SPDX-License-Identifier: MIT
+ * NOTES ON CONVERSION:
+ * - RGB removed as requested.
+ * - ALT_TAB converted to a ZMK macro (holds Alt, taps Tab).
+ * - MUTE_TEAMS (Ctrl+Shift+M) was defined in QMK but never placed on any layer, so it is omitted.
+ * - MOUSEJIGGLERMACRO is not natively supported in ZMK; that key position is set to &none.
+ * - OLED on/off is handled by &ext_power EP_TOG (top-left of FUN layer, where RGB_TOG was).
+ *   Requires CONFIG_ZMK_EXT_POWER=y in config/corne.conf.
+ *
+ * BOOTLOADER COMBO:
+ * - Hold the two outermost thumb keys simultaneously (positions 36 + 41) on QWERTY layer only.
+ * - Left half combo enters left bootloader, right half combo enters right bootloader.
+ * - Key positions on Corne (0-indexed):
+ *    0  1  2  3  4  5     6  7  8  9 10 11
+ *   12 13 14 15 16 17    18 19 20 21 22 23
+ *   24 25 26 27 28 29    30 31 32 33 34 35
+ *               36 37 38    39 40 41
+ *   36 = far-left thumb key (RGUI)
+ *   41 = far-right thumb key (DEL)
  */
 
 #include <behaviors.dtsi>
 #include <dt-bindings/zmk/keys.h>
 #include <dt-bindings/zmk/bt.h>
+#include <dt-bindings/zmk/ext_power.h>
+#include <dt-bindings/zmk/outputs.h>
+
+#define QWERTY 0
+#define NAV    1
+#define PAR    2
+#define NUM    3
+#define FUN    4
 
 / {
-        keymap {
-                compatible = "zmk,keymap";
+    combos {
+        compatible = "zmk,combos";
 
-                default_layer {
-// -----------------------------------------------------------------------------------------
-// |  TAB |  Q  |  W  |  E  |  R  |  T  |   |  Y  |  U   |  I  |  O  |  P  | BKSP |
-// | CTRL |  A  |  S  |  D  |  F  |  G  |   |  H  |  J   |  K  |  L  |  ;  |  '   |
-// | SHFT |  Z  |  X  |  C  |  V  |  B  |   |  N  |  M   |  ,  |  .  |  /  | ESC  |
-//                    | GUI | LWR | SPC |   | ENT | RSE  | ALT |
-                        bindings = <
-   &kp TAB   &kp Q &kp W &kp E &kp R &kp T   &kp Y &kp U  &kp I     &kp O   &kp P    &kp BSPC
-   &kp LCTRL &kp A &kp S &kp D &kp F &kp G   &kp H &kp J  &kp K     &kp L   &kp SEMI &kp SQT
-   &kp LSHFT &kp Z &kp X &kp C &kp V &kp B   &kp N &kp M  &kp COMMA &kp DOT &kp FSLH &kp ESC
-                  &kp LGUI &mo 1 &kp SPACE   &kp RET &mo 2 &kp RALT
-                        >;
-                };
-                lower_layer {
-// -----------------------------------------------------------------------------------------
-// |  TAB |  1  |  2  |  3  |  4  |  5  |   |  6  |  7  |  8  |  9  |  0  | BKSP |
-// | BTCLR| BT1 | BT2 | BT3 | BT4 | BT5 |   | LFT | DWN |  UP | RGT |     |      |
-// | SHFT |     |     |     |     |     |   |     |     |     |     |     |      |
-//                    | GUI |     | SPC |   | ENT |     | ALT |
-                        bindings = <
-   &kp TAB    &kp N1       &kp N2       &kp N3       &kp N4       &kp N5         &kp N6   &kp N7   &kp N8 &kp N9    &kp N0 &kp BSPC
-   &bt BT_CLR &bt BT_SEL 0 &bt BT_SEL 1 &bt BT_SEL 2 &bt BT_SEL 3 &bt BT_SEL 4   &kp LEFT &kp DOWN &kp UP &kp RIGHT &trans &trans
-   &studio_unlock  &studio_unlock       &trans       &trans       &trans       &trans         &trans   &trans   &trans &trans    &trans &trans
-                                    &kp LGUI     &trans       &kp SPACE      &kp RET  &trans   &kp RALT
-                        >;
-                };
-
-                raise_layer {
-// -----------------------------------------------------------------------------------------
-// |  TAB |  !  |  @  |  #  |  $  |  %  |   |  ^  |  &  |  *  |  (  |  )  | BKSP |
-// | CTRL |     |     |     |     |     |   |  -  |  =  |  [  |  ]  |  \  |  `   |
-// | SHFT |     |     |     |     |     |   |  _  |  +  |  {  |  }  | "|" |  ~   |
-//                    | GUI |     | SPC |   | ENT |     | ALT |
-                        bindings = <
-   &kp  TAB  &kp EXCL &kp AT &kp HASH &kp DLLR &kp PRCNT   &kp CARET &kp AMPS  &kp ASTRK &kp LPAR &kp RPAR &kp BSPC
-   &kp LCTRL &trans   &trans &trans   &trans   &trans      &kp MINUS &kp EQUAL &kp LBKT  &kp RBKT &kp BSLH &kp GRAVE
-   &kp LSHFT &trans   &trans &trans   &trans   &trans      &kp UNDER &kp PLUS  &kp LBRC  &kp RBRC &kp PIPE &kp TILDE
-                             &kp LGUI &trans   &kp SPACE   &kp RET   &trans    &kp RALT
-                        >;
-                };
+        // Bootloader combos: press all 4 corner keys on a half simultaneously.
+        // Each half independently enters its own bootloader. QWERTY layer only.
+        // Left corners:  0=ESC, 5=T, 24=LSHFT, 29=B
+        // Right corners: 6=Y, 11=BSPC, 30=N, 35=RSHFT
+        combo_bootloader_left {
+            timeout-ms = <100>;
+            key-positions = <0 5 24 29>;
+            bindings = <&bootloader>;
+            layers = <QWERTY>;
         };
+
+        combo_bootloader_right {
+            timeout-ms = <100>;
+            key-positions = <6 11 30 35>;
+            bindings = <&bootloader>;
+            layers = <QWERTY>;
+        };
+    };
+
+    macros {
+        alt_tab: alt_tab {
+            compatible = "zmk,behavior-macro";
+            #binding-cells = <0>;
+            bindings
+                = <&macro_press &kp LALT>
+                , <&macro_tap &kp TAB>
+                , <&macro_release &kp LALT>
+                ;
+        };
+    };
+
+    keymap {
+        compatible = "zmk,keymap";
+
+        qwerty_layer {
+            // ,------------------------------------------.                ,-------------------------------------------.
+            // | ESC  |  Q   |  W   |  E   |  R   |  T   |                |  Y   |  U   |  I   |  O   |  P   | BSPC  |
+            // |------+------+------+------+------+------|                |------+------+------+------+------+-------|
+            // | LCTL |  A   |  S   |  D   |  F   |  G   |                |  H   |  J   |  K   |  L   |  ;   |  ENT  |
+            // |------+------+------+------+------+------|                |------+------+------+------+------+-------|
+            // | LSFT |  Z   |  X   |  C   |  V   |  B   |                |  N   |  M   |  ,   |  .   |  /   | RSFT  |
+            // `------+------+------+------+------+------+------.  ,------+------+------+------+------+------+-------'
+            //                      | RGUI | PAR  |NUM/SPC|       |NAV/SPC| LALT |  DEL |
+            //                      `--------------------'        `--------------------'
+            bindings = <
+                &kp ESC   &kp Q  &kp W  &kp E  &kp R  &kp T           &kp Y  &kp U     &kp I      &kp O    &kp P     &kp BSPC
+                &kp LCTRL &kp A  &kp S  &kp D  &kp F  &kp G           &kp H  &kp J     &kp K      &kp L    &kp SEMI  &kp RET
+                &kp LSHFT &kp Z  &kp X  &kp C  &kp V  &kp B           &kp N  &kp M     &kp COMMA  &kp DOT  &kp FSLH  &kp RSHFT
+                                 &kp RGUI  &mo PAR  &lt NUM SPACE      &lt NAV SPACE  &kp LALT  &kp DEL
+            >;
+        };
+
+        nav_layer {
+            // ,------------------------------------------.                ,-------------------------------------------.
+            // |  `   |      |      | PGUP |      |      |                | VOLU | VOLD |  UP  |      |  ]   |  [    |
+            // |------+------+------+------+------+------|                |------+------+------+------+------+-------|
+            // | TRNS |      | HOME | PGDN | END  |      |                | MUTE | LEFT | DOWN | RGHT |  '   |  \    |
+            // |------+------+------+------+------+------|                |------+------+------+------+------+-------|
+            // | TRNS |      |      |      |      |      |                | (--) |      |      |      |      |  FUN  |
+            // `------+------+------+------+------+------+------.  ,------+------+------+------+------+------+-------'
+            //                      | TRNS | TRNS | TRNS |       | TRNS | TRNS | TRNS |
+            //                      `--------------------'        `--------------------'
+            // Note: (--) = MOUSEJIGGLERMACRO — not supported natively in ZMK, mapped to &none.
+            bindings = <
+                &kp GRAVE  &none  &none     &kp PG_UP  &none     &none      &kp C_VOL_UP  &kp C_VOL_DN  &kp UP    &none      &kp RBKT  &kp LBKT
+                &trans     &none  &kp HOME  &kp PG_DN  &kp END   &none      &kp C_MUTE    &kp LEFT      &kp DOWN  &kp RIGHT  &kp SQT   &kp BSLH
+                &trans     &none  &none     &none      &none     &none      &none          &none         &none     &none      &none     &mo FUN
+                                  &trans    &trans     &trans               &trans         &trans        &trans
+            >;
+        };
+
+        par_layer {
+            // ,------------------------------------------.                ,-------------------------------------------.
+            // |ALTAB |  1   |  2   |  3   |  4   |  5   |                |  6   |  7   |  8   |  9   |  0   |  =    |
+            // |------+------+------+------+------+------|                |------+------+------+------+------+-------|
+            // | TRNS |      |  {   |  [   |  (   | F11  |                | F12  |  )   |  ]   |  }   |      |  ]    |
+            // |------+------+------+------+------+------|                |------+------+------+------+------+-------|
+            // | TRNS |  F1  |  F2  |  F3  |  F4  |  F5  |                |  F6  |  F7  |  F8  |  F9  | F10  | TRNS  |
+            // `------+------+------+------+------+------+------.  ,------+------+------+------+------+------+-------'
+            //                      | TRNS | TRNS | TRNS |       | TRNS | TRNS | TRNS |
+            //                      `--------------------'        `--------------------'
+            bindings = <
+                &alt_tab  &kp N1  &kp N2   &kp N3   &kp N4   &kp N5      &kp N6   &kp N7   &kp N8   &kp N9   &kp N0   &kp EQUAL
+                &trans    &none   &kp LBRC &kp LBKT &kp LPAR &kp F11     &kp F12  &kp RPAR &kp RBKT &kp RBRC &none    &kp RBKT
+                &trans    &kp F1  &kp F2   &kp F3   &kp F4   &kp F5      &kp F6   &kp F7   &kp F8   &kp F9   &kp F10  &trans
+                                  &trans   &trans   &trans               &trans   &trans   &trans
+            >;
+        };
+
+        num_layer {
+            // ,------------------------------------------.                ,-------------------------------------------.
+            // | TAB  |      |      |      |  +   |  -   |                |  *   |  /   |      |      |      |  DEL  |
+            // |------+------+------+------+------+------|                |------+------+------+------+------+-------|
+            // | TRNS |  1   |  2   |  3   |  4   |  5   |                |  6   |  7   |  8   |  9   |  0   |  ]    |
+            // |------+------+------+------+------+------|                |------+------+------+------+------+-------|
+            // | TRNS | NUBS |      |      | TRNS |  F9  |                |      |      | TRNS | TRNS | TRNS | TRNS  |
+            // `------+------+------+------+------+------+------.  ,------+------+------+------+------+------+-------'
+            //                      | TRNS | TRNS | TRNS |       | TRNS | TRNS | TRNS |
+            //                      `--------------------'        `--------------------'
+            bindings = <
+                &kp TAB  &none           &none  &none  &kp KP_PLUS  &kp MINUS      &kp KP_MULTIPLY  &kp KP_DIVIDE  &none   &none   &none   &kp DEL
+                &trans   &kp N1          &kp N2 &kp N3 &kp N4       &kp N5         &kp N6           &kp N7         &kp N8  &kp N9  &kp N0  &kp RBKT
+                &trans   &kp NON_US_BSLH &none  &none  &trans       &kp F9         &none            &none          &trans  &trans  &trans  &trans
+                                         &trans &trans &trans                       &trans           &trans         &trans
+            >;
+        };
+
+        fun_layer {
+            // ,------------------------------------------.                ,-------------------------------------------.
+            // |OLEDTG|EP_ON |EP_OFF| BT0  | BT1  | BT2  |                | BT3  | BT4  |      |      |      |BTCLRA |
+            // |------+------+------+------+------+------|                |------+------+------+------+------+-------|
+            // | TRNS |BTPRV |BTNXT |      |      |      |                |      |      |      |      |      |BTCLR  |
+            // |------+------+------+------+------+------|                |------+------+------+------+------+-------|
+            // | TRNS |      |      |      |      |      |                |      |      |      |      |      | TRNS  |
+            // `------+------+------+------+------+------+------.  ,------+------+------+------+------+------+-------'
+            //                      | TRNS |USBTOG| TRNS |       | TRNS | TRNS | RESET|
+            //                      `--------------------'        `--------------------'
+            //
+            // OLEDTG  = toggle OLED on/off             (ESC position, top-left)
+            // EP_ON   = OLED power ON                  (Q) — use for blank OLED recovery
+            // EP_OFF  = OLED power OFF                 (W) — use for blank OLED recovery
+            // BT0–BT4 = switch to BT profile 0–4      (E R T / Y U)
+            // BTPRV   = previous BT profile            (A)
+            // BTNXT   = next BT profile                (S)
+            // BTCLR   = clear pairing on current profile  (Enter, right side)
+            // BTCLRA  = clear ALL pairings             (Backspace, top-right)
+            // USBTOG  = toggle USB / BT output         (middle left thumb)
+            // RESET   = soft reset keyboard            (right far thumb / DEL position)
+            //
+            // OLED blank recovery sequence: EP_OFF → EP_ON → RESET
+            bindings = <
+                &ext_power EP_TOG  &ext_power EP_ON  &ext_power EP_OFF  &bt BT_SEL 0  &bt BT_SEL 1  &bt BT_SEL 2      &bt BT_SEL 3  &bt BT_SEL 4  &trans  &trans  &trans  &bt BT_CLR_ALL
+                &trans             &bt BT_PRV        &bt BT_NXT         &trans         &trans         &trans            &trans         &trans        &trans  &trans  &trans  &bt BT_CLR
+                &trans             &trans            &trans             &trans         &trans         &trans            &trans         &trans        &trans  &trans  &trans  &trans
+                                                     &trans             &out OUT_TOG   &trans                           &trans         &trans        &sys_reset
+            >;
+        };
+    };
 };
