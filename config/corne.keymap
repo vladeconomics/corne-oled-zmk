@@ -6,7 +6,7 @@
  * - ALT_TAB converted to a ZMK macro (holds Alt, taps Tab).
  * - MUTE_TEAMS (Ctrl+Shift+M) was defined in QMK but never placed on any layer, so it is omitted.
  * - MOUSEJIGGLERMACRO is not natively supported in ZMK; that key position is set to &none.
- * - OLED on/off is handled by &ext_power EP_TOG (top-left of FUN layer, where RGB_TOG was).
+ * - OLED on/off is handled by &none              (top-left of FUN layer, where RGB_TOG was).
  *   Requires CONFIG_ZMK_EXT_POWER=y in config/corne.conf.
  *
  * BOOTLOADER COMBO:
@@ -24,7 +24,7 @@
 #include <behaviors.dtsi>
 #include <dt-bindings/zmk/keys.h>
 #include <dt-bindings/zmk/bt.h>
-#include <dt-bindings/zmk/ext_power.h>
+
 #include <dt-bindings/zmk/outputs.h>
 
 #define QWERTY 0
@@ -169,7 +169,7 @@
             //
             // OLED blank recovery sequence: EP_OFF → EP_ON → RESET
             bindings = <
-                &ext_power EP_TOG  &ext_power EP_ON  &ext_power EP_OFF  &bt BT_SEL 0  &bt BT_SEL 1  &bt BT_SEL 2      &bt BT_SEL 3  &bt BT_SEL 4  &kp N7  &kp N8  &kp N9  &bt BT_CLR_ALL
+                &none               &none              &none               &bt BT_SEL 0  &bt BT_SEL 1  &bt BT_SEL 2      &bt BT_SEL 3  &bt BT_SEL 4  &kp N7  &kp N8  &kp N9  &bt BT_CLR_ALL
                 &trans             &bt BT_PRV        &bt BT_NXT         &kp N1         &kp N2         &kp N3            &kp N4         &kp N5        &kp N6  &trans  &trans  &bt BT_CLR
                 &trans             &trans            &trans             &trans         &trans         &trans            &trans         &trans        &trans  &trans  &trans  &trans
                                                      &trans             &out OUT_TOG   &kp N0                           &trans         &trans        &sys_reset
